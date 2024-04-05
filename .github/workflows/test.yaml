@@ -13,6 +13,11 @@ jobs:
     env:
       VMM: ${{ matrix.vmm }}
     steps:
-      - name: Build step
+      - name: Perform test
+        if: ${{ inputs.skip != 'yes' }}
+        run: |
+          true
+      - name: Skip test
+        if: ${{ inputs.skip == 'yes' }}
         run: |
           true
