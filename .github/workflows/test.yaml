@@ -3,17 +3,17 @@ on:
   workflow_call:
 
 jobs:
-  runs-on: ubuntu-latest
-  build-everything:
-    strategy:
-      matrix:
-        vmm:
-          - qemu
-          - clh
-    env:
-      VMM: ${{ matrix.vmm }}
-    steps:
-      - name: Build step
-        run: |
-          true
-
+  test:
+    runs-on: ubuntu-latest
+    build-everything:
+      strategy:
+        matrix:
+          vmm:
+            - qemu
+            - clh
+      env:
+        VMM: ${{ matrix.vmm }}
+      steps:
+        - name: Build step
+          run: |
+            true
