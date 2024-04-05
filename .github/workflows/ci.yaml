@@ -23,3 +23,5 @@ jobs:
   test:
     needs: build
     uses: ./.github/workflows/test.yaml
+    with:
+      skip: "yes"

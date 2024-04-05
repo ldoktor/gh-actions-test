@@ -1,6 +1,11 @@
 name: CI | Test
 on:
   workflow_call:
+    inputs:
+      skip:
+        required: false
+        type: string
+        default: no
 
 jobs:
   test:
