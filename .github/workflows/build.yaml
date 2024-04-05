@@ -4,6 +4,7 @@ on:
 
 jobs:
   build-everything:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         host_os:

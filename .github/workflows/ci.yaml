@@ -18,10 +18,8 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
     uses: ./.github/workflows/build.yaml
 
   test:
     needs: build
-    runs-on: ubuntu-latest
     uses: ./.github/workflows/test.yaml
