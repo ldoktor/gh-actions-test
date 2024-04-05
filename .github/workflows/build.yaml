@@ -1,6 +1,11 @@
 name: CI | Build
 on:
   workflow_call:
+    inputs:
+      skip:
+        required: false
+        type: string
+        default: no
 
 jobs:
   build-everything:

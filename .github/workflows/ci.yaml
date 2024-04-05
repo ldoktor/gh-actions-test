@@ -17,11 +17,42 @@ on:
         default: ""
 
 jobs:
+  skipper:
+    runs-on: ubuntu-latest
+    outputs:
+      skip_build: ${{ steps.skipper.outputs.build }}
+      skip_test: ${{ steps.skipper.outputs.tests }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit-hash }}
+          fetch-depth: 0
+      - id: skipper
+        env:
+          TARGET_BRANCH: ${{ inputs.target-branch }}
+        run: |
+          CHANGED_FILES=$(git diff --name-only origin/${TARGET_BRANCH})
+          echo "$CHANGED_FILES"
+          echo
+          # ci/* doesn't require any tests, just remove them
+          CHANGED_FILES=$(echo "$CHANGED_FILES" | grep -v '^ci/')
+          # **/*.{rst,md} file require only build
+          echo "$CHANGED_FILES" | grep -e '\.rst$' -e '\.md$' -q && "echo build=yes" >> "$GITHUB_OUTPUT" && CHANGED_FILES=$(echo "$CHANGED_FILES" | grep -v -e '\.rst$' -e '\.md$')
+          # Add more rules here; don't forget to remove treated CHANGED_FILES
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "build=yes" >> "$GITHUB_OUTPUT"
+            echo "tests=yes" >> "$GITHUB_OUTPUT"
+          fi
+          echo "GH OUTPUT"
+          cat "$GITHUB_OUTPUT"
   build:
+    needs: skipper
     uses: ./.github/workflows/build.yaml
+    with:
+      skip: ${{ needs.skipper.outputs.skip_build }}
 
   test:
-    needs: build
+    needs: [build, skipper]
     uses: ./.github/workflows/test.yaml
     with:
-      skip: "yes"
+      skip: ${{ needs.skipper.outputs.skip_tests }}
