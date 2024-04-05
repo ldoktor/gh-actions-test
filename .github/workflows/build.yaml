@@ -19,5 +19,11 @@ jobs:
       HOST_OS: ${{ matrix.host_os }}
     steps:
       - name: Build step
+        if: ${{ inputs.skip != 'yes' }}
         run: |
           true
+      - name: Skip build
+        if: ${{ inputs.skip == 'yes' }}
+        run: |
+          true
+
