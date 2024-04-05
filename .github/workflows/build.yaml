@@ -1,0 +1,17 @@
+name: CI | Build
+on:
+  workflow_call:
+
+jobs:
+  build-everything:
+    strategy:
+      matrix:
+        host_os:
+          - fedora
+          - rhel
+    env:
+      HOST_OS: ${{ matrix.host_os }}
+    steps:
+      - name: Build step
+        run: |
+          true

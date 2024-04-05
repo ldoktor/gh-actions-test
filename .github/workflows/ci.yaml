@@ -1,0 +1,25 @@
+name: Run the CI
+on:
+  workflow_call:
+    inputs:
+      commit-hash:
+        required: true
+        type: string
+      pr-number:
+        required: true
+        type: string
+      tag:
+        required: true
+        type: string
+      target-branch:
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yaml
+
+  test:
+    needs: build
+    uses: ./.github/workflows/test.yaml
