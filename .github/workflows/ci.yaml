@@ -31,7 +31,8 @@ jobs:
         env:
           TARGET_BRANCH: ${{ inputs.target-branch }}
         run: |
-          CHANGED_FILES=$(git diff --name-only origin/${TARGET_BRANCH})
+          #!/bin/bash -x
+          CHANGED_FILES=$(git diff --name-only "origin/${TARGET_BRANCH}")
           echo "$CHANGED_FILES"
           echo
           # ci/* doesn't require any tests, just remove them
@@ -45,6 +46,7 @@ jobs:
           fi
           echo "GH OUTPUT"
           cat "$GITHUB_OUTPUT"
+        shell: /usr/bin/bash -x {0}
   build:
     needs: skipper
     uses: ./.github/workflows/build.yaml
