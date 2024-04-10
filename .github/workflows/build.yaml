@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-everything:
-    runs-on: ubuntu-latest
+    runs-on: non-existing-label
     strategy:
       matrix:
         host_os:
@@ -23,6 +23,7 @@ jobs:
         run: |
           true
       - name: Skip build
+        runs-on: ubuntu-latest
         if: ${{ inputs.skip == 'yes' }}
         run: |
           true
