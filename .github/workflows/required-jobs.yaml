@@ -1,4 +1,4 @@
-name: Monitor Workflow
+name: Check Other Job Status
 
 on:
   pull_request_target:
@@ -9,60 +9,111 @@ on:
       - labeled
 
 jobs:
-  monitor:
+  skipper:
     runs-on: ubuntu-latest
+    outputs:
+      skip_build: ${{ steps.skipper.outputs.skip_build }}
+      skip_test: ${{ steps.skipper.outputs.skip_test }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Monitor job statuses
-        id: monitor-jobs
-        uses: actions/github-script@v5
+      - uses: actions/checkout@v4
         with:
-          script: |
-            const { Octokit } = require("@octokit/rest");
-            const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+          ref: ${{ inputs.commit-hash }}
+          fetch-depth: 0
+      - id: skipper
+        env:
+          TARGET_BRANCH: ${{ inputs.target-branch }}
+        run: |
+          #!/bin/bash -x
+          # NOTE: keep ALL_SKIPS and skipper.outputs in sync
+          ALL_SKIPS=( skip_build skip_test )
+          DISABLE_SKIPS=()
+          CHANGED_FILES=$(git diff --name-only "origin/${TARGET_BRANCH}")
+          echo "$CHANGED_FILES"
+          echo
 
-            // Define the list of job names to monitor
-            const jobNamesToMonitor = ['job1', 'job2', 'job3'];
+          # ci/* doesn't require any tests, just remove them
+          CHANGED_FILES=$(echo "$CHANGED_FILES" | grep -v '^ci/')
+          # **/*.{rst,md} file require only build
+          echo "$CHANGED_FILES" | grep -e '\.rst$' -e '\.md$' -q && DISABLE_SKIPS+=( skip_build ) && CHANGED_FILES=$(echo "$CHANGED_FILES" | grep -v -e '\.rst$' -e '\.md$')
+          # Add more rules here; don't forget to remove treated CHANGED_FILES
 
-            let allJobsCompleted = false;
-            let failedJobs = [];
+          if [ -n "$CHANGED_FILES" ]; then
+            # Remaining utreated files, run all tests
+            for SKIP in "${ALL_SKIPS[@]}"; do
+              echo "$SKIP=no" >> "$GITHUB_OUTPUT"
+            done
+          else
+            # Set DISABLE_SKIPS to no (don't want to skip them)
+            for SKIP in "${DISABLE_SKIPS[@]}"; do
+              echo "$SKIP=no" >> "$GITHUB_OUTPUT"
+            done
+            # Now SKIP all untreated checks
+            for SKIP in "${ALL_SKIPS[@]}"; do
+              grep "^$SKIP=" "$GITHUB_OUTPUT" || echo "$SKIP=yes" >> "$GITHUB_OUTPUT"
+            done
+          fi
+          echo "GH OUTPUT"
+          cat "$GITHUB_OUTPUT"
+        shell: /usr/bin/bash -x {0}
 
-            while (!allJobsCompleted) {
-              const response = await octokit.request(
-                'GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs',
-                {
-                  owner: process.env.GITHUB_REPOSITORY.split('/')[0],
-                  repo: process.env.GITHUB_REPOSITORY.split('/')[1],
-                  run_id: process.env.GITHUB_RUN_ID
-                }
-              );
+  check-status:
+    needs: skipper
+    runs-on: ubuntu-latest
 
-              const jobs = response.data.jobs;
-              allJobsCompleted = true;
+    steps:
+    - name: Check Other Job Status
+      run: |
+        # Get the current workflow run ID
+        RUN_ID=$(echo $GITHUB_RUN_ID)
 
-              jobs.forEach(job => {
-                if (jobNamesToMonitor.includes(job.name)) {
-                  console.log(`Job name: ${job.name}, Status: ${job.status}`);
-                  if (job.status === 'completed') {
-                    if (job.conclusion !== 'success' && job.conclusion !== 'skipped') {
-                      failedJobs.push(job.name);
-                    }
-                  } else {
-                    allJobsCompleted = false;
-                  }
-                }
-              });
+        # Define the required jobs
+        REQUIRED_JOBS=("FOO" "BAR" "BAZ")
 
-              if (!allJobsCompleted) {
-                console.log('Waiting for jobs to complete...');
-                await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds before checking again
-              }
-            }
+        # Poll interval in seconds
+        POLL_INTERVAL=30
 
-            if (failedJobs.length > 0) {
-              console.error('Some monitored jobs failed:', failedJobs.join(', '));
-              process.exit(1); // Fail the workflow
-            }
+        # Get the jobs for the current workflow run
+        get_jobs() {
+          curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs
+        }
 
+        sleep 60
+
+        # Print all jobs
+        echo "All jobs:"
+        ALL_JOBS=$(get_jobs)
+        echo $ALL_JOBS | jq -r '.jobs[].name'
+
+        # Continuously poll the status of required jobs until any of them fails or all of them have completed
+        while true; do
+          all_completed=true
+          for job_name in "${REQUIRED_JOBS[@]}"; do
+            # Get the status of the current job
+            JOB_STATUS=$(echo $ALL_JOBS | jq -r ".jobs[] | select(.name == \"$job_name\") | .status")
+
+            # Print the status of the current job
+            echo "$job_name job status: $JOB_STATUS"
+
+            # Check if the current job failed
+            if [ "$JOB_STATUS" = "completed" ]; then
+              continue
+            elif [ "$JOB_STATUS" = "in_progress" ]; then
+              all_completed=false
+            else
+              echo "$job_name job failed."
+              exit 1
+            fi
+          done
+
+          # If all required jobs have completed, exit the loop
+          if $all_completed; then
+            echo "All required jobs completed."
+            break
+          fi
+
+          # Sleep for the poll interval before checking again
+          sleep $POLL_INTERVAL
+          ALL_JOBS=$(get_jobs)
+        done

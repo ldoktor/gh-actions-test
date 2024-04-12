@@ -1,11 +1,6 @@
 name: CI | Test
 on:
   workflow_call:
-    inputs:
-      skip:
-        required: false
-        type: string
-        default: no
 
 jobs:
   test:
@@ -19,10 +14,5 @@ jobs:
       VMM: ${{ matrix.vmm }}
     steps:
       - name: Perform test
-        if: ${{ inputs.skip != 'yes' }}
-        run: |
-          true
-      - name: Skip test
-        if: ${{ inputs.skip == 'yes' }}
         run: |
           true

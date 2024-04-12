@@ -1,11 +1,6 @@
 name: CI | Build
 on:
   workflow_call:
-    inputs:
-      skip:
-        required: false
-        type: string
-        default: no
 
 jobs:
   build-everything:
@@ -19,12 +14,5 @@ jobs:
       HOST_OS: ${{ matrix.host_os }}
     steps:
       - name: Build step
-        if: ${{ inputs.skip != 'yes' }}
         run: |
           true
-      - name: Skip build
-        runs-on: ubuntu-latest
-        if: ${{ inputs.skip == 'yes' }}
-        run: |
-          true
-

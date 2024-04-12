@@ -65,12 +65,10 @@ jobs:
         shell: /usr/bin/bash -x {0}
   build:
     needs: skipper
+    if: ${{ needs.skipper.outputs.skip_build }}
     uses: ./.github/workflows/build.yaml
-    with:
-      skip: ${{ needs.skipper.outputs.skip_build }}
 
   test:
     needs: [build, skipper]
+    if: ${{ needs.skipper.outputs.skip_test }}
     uses: ./.github/workflows/test.yaml
-    with:
-      skip: ${{ needs.skipper.outputs.skip_test }}
