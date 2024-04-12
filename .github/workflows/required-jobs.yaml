@@ -1,0 +1,68 @@
+name: Monitor Workflow
+
+on:
+  pull_request_target:
+    types:
+      - open
+      - synchronize
+      - reopened
+      - labeled
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Monitor job statuses
+        id: monitor-jobs
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const { Octokit } = require("@octokit/rest");
+            const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+
+            // Define the list of job names to monitor
+            const jobNamesToMonitor = ['job1', 'job2', 'job3'];
+
+            let allJobsCompleted = false;
+            let failedJobs = [];
+
+            while (!allJobsCompleted) {
+              const response = await octokit.request(
+                'GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs',
+                {
+                  owner: process.env.GITHUB_REPOSITORY.split('/')[0],
+                  repo: process.env.GITHUB_REPOSITORY.split('/')[1],
+                  run_id: process.env.GITHUB_RUN_ID
+                }
+              );
+
+              const jobs = response.data.jobs;
+              allJobsCompleted = true;
+
+              jobs.forEach(job => {
+                if (jobNamesToMonitor.includes(job.name)) {
+                  console.log(`Job name: ${job.name}, Status: ${job.status}`);
+                  if (job.status === 'completed') {
+                    if (job.conclusion !== 'success' && job.conclusion !== 'skipped') {
+                      failedJobs.push(job.name);
+                    }
+                  } else {
+                    allJobsCompleted = false;
+                  }
+                }
+              });
+
+              if (!allJobsCompleted) {
+                console.log('Waiting for jobs to complete...');
+                await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds before checking again
+              }
+            }
+
+            if (failedJobs.length > 0) {
+              console.error('Some monitored jobs failed:', failedJobs.join(', '));
+              process.exit(1); // Fail the workflow
+            }
+
