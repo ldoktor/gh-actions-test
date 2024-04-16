@@ -1,0 +1,17 @@
+name: Check Workflow
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Check Workflow
+        id: check_workflow
+        run: |
+          python3 .github/workflows/jobs.py
