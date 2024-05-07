@@ -17,17 +17,35 @@ on:
         default: ""
 
 jobs:
-  skipper:
+  skipper-job:
     uses: ./.github/workflows/gatekeeper-skipper.yaml
     with:
       commit-hash: ${{ github.event.pull_request.head.sha }}
       target-branch: ${{ github.event.pull_request.base.ref }}
 
+#  skipper-job:
+#    runs-on: ubuntu-latest
+#    outputs:
+#      skip_build: ${{ steps.skipper-step-id.outputs.skip_build }}
+#      skip_test: ${{ steps.skipper-step-id.outputs.skip_test }}
+#      skip_static: ${{ steps.skipper-step-id.outputs.skip_static }}
+#    steps:
+#      - id: skipper-step-id
+#        run: |
+#          echo skip_build=yes | tee -a "$GITHUB_OUTPUT"
+#          echo skip_test=no | tee -a "$GITHUB_OUTPUT"
+#          echo skip_static=something_else >> "$GITHUB_OUTPUT"
+#          echo "----- CAT -----"
+#          cat "$GITHUB_OUTPUT"
+
   job1:
-    needs: skipper
+    needs: skipper-job
     runs-on: ubuntu-latest
     steps:
-      - name: env
+      - env:
+          SKIP_STATIC: ${{ needs.skipper-job.outputs.skip_static }}
+          SKIP_TEST: ${{ needs.skipper-job.outputs.skip_test }}
+          SKIP_BUILD: ${{ needs.skipper-job.outputs.skip_build }}
         run: |
           echo "STATIC: $SKIP_STATIC"
           echo "TEST: $SKIP_TEST"
@@ -36,18 +54,14 @@ jobs:
           echo "STATIC: $SKIP_STATIC"
           echo "TEST: $SKIP_TEST"
           echo "BUILD: $SKIP_BUILD"
-        env:
-          SKIP_STATIC: ${{ needs.skipper.outputs.skip_static }}
-          SKIP_TEST: ${{ needs.skipper.outputs.skip_test }}
-          SKIP_BUILD: ${{ needs.skipper.outputs.skip_build }}
 
   job2:
-    needs: skipper
+    needs: skipper-job
     uses: ./.github/workflows/job2.yaml
     with:
-      skip-static: ${{ needs.skipper.outputs.skip_static }}
-      skip-tests: ${{ needs.skipper.outputs.skip_test }}
-      skip-build: ${{ needs.skipper.outputs.skip_build }}
+      skip-static: ${{ needs.skipper-job.outputs.skip_static }}
+      skip-tests: ${{ needs.skipper-job.outputs.skip_test }}
+      skip-build: ${{ needs.skipper-job.outputs.skip_build }}
 
 #  build:
 #    needs: skipper

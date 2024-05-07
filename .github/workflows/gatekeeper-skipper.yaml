@@ -1,0 +1,35 @@
+name: Skipper
+on:
+  workflow_call:
+    inputs:
+      commit-hash:
+        required: true
+        type: string
+      target-branch:
+        required: false
+        type: string
+        default: ""
+    outputs:
+      skip_build:
+        value: ${{ jobs.skipper.outputs.skip_build }}
+      skip_test:
+        value: ${{ jobs.skipper.outputs.skip_test }}
+      skip_static:
+        value: ${{ jobs.skipper.outputs.skip_static }}
+
+
+jobs:
+  skipper:
+    runs-on: ubuntu-latest
+    outputs:
+      skip_build: ${{ steps.skipper-step-id.outputs.skip_build }}
+      skip_test: ${{ steps.skipper-step-id.outputs.skip_test }}
+      skip_static: ${{ steps.skipper-step-id.outputs.skip_static }}
+    steps:
+      - id: skipper-step-id
+        run: |
+          echo skip_build=yes | tee -a "$GITHUB_OUTPUT"
+          echo skip_test=no | tee -a "$GITHUB_OUTPUT"
+          echo skip_static=something_else >> "$GITHUB_OUTPUT"
+          echo "----- CAT -----"
+          cat "$GITHUB_OUTPUT"
