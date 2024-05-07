@@ -18,57 +18,43 @@ on:
 
 jobs:
   skipper:
-    runs-on: ubuntu-latest
-    outputs:
-      skip_build: ${{ steps.skipper.outputs.skip_build }}
-      skip_test: ${{ steps.skipper.outputs.skip_test }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.commit-hash }}
-          fetch-depth: 0
-      - id: skipper
-        env:
-          TARGET_BRANCH: ${{ inputs.target-branch }}
-        run: |
-          #!/bin/bash -x
-          # NOTE: keep ALL_SKIPS and skipper.outputs in sync
-          ALL_SKIPS=( skip_build skip_test )
-          DISABLE_SKIPS=()
-          CHANGED_FILES=$(git diff --name-only "origin/${TARGET_BRANCH}")
-          echo "$CHANGED_FILES"
-          echo
+    uses: ./.github/workflows/gatekeeper-skipper.yaml
+    with:
+      commit-hash: ${{ github.event.pull_request.head.sha }}
+      target-branch: ${{ github.event.pull_request.base.ref }}
 
-          # ci/* doesn't require any tests, just remove them
-          CHANGED_FILES=$(echo "$CHANGED_FILES" | grep -v '^ci/')
-          # **/*.{rst,md} file require only build
-          echo "$CHANGED_FILES" | grep -e '\.rst$' -e '\.md$' -q && DISABLE_SKIPS+=( skip_build ) && CHANGED_FILES=$(echo "$CHANGED_FILES" | grep -v -e '\.rst$' -e '\.md$')
-          # Add more rules here; don't forget to remove treated CHANGED_FILES
-
-          if [ -n "$CHANGED_FILES" ]; then
-            # Remaining utreated files, run all tests
-            for SKIP in "${ALL_SKIPS[@]}"; do
-              echo "$SKIP=no" >> "$GITHUB_OUTPUT"
-            done
-          else
-            # Set DISABLE_SKIPS to no (don't want to skip them)
-            for SKIP in "${DISABLE_SKIPS[@]}"; do
-              echo "$SKIP=no" >> "$GITHUB_OUTPUT"
-            done
-            # Now SKIP all untreated checks
-            for SKIP in "${ALL_SKIPS[@]}"; do
-              grep "^$SKIP=" "$GITHUB_OUTPUT" || echo "$SKIP=yes" >> "$GITHUB_OUTPUT"
-            done
-          fi
-          echo "GH OUTPUT"
-          cat "$GITHUB_OUTPUT"
-        shell: /usr/bin/bash -x {0}
-  build:
+  job1:
     needs: skipper
-    if: ${{ needs.skipper.outputs.skip_build }}
-    uses: ./.github/workflows/build.yaml
+    runs-on: ubuntu-latest
+    steps:
+      - name: env
+        run: |
+          echo "STATIC: $SKIP_STATIC"
+          echo "TEST: $SKIP_TEST"
+          echo "BUILD: $SKIP_BUILD"
+          env
+          echo "STATIC: $SKIP_STATIC"
+          echo "TEST: $SKIP_TEST"
+          echo "BUILD: $SKIP_BUILD"
+        env:
+          SKIP_STATIC: ${{ needs.skipper.outputs.skip_static }}
+          SKIP_TEST: ${{ needs.skipper.outputs.skip_test }}
+          SKIP_BUILD: ${{ needs.skipper.outputs.skip_build }}
 
-  test:
-    needs: [build, skipper]
-    if: ${{ needs.skipper.outputs.skip_test }}
-    uses: ./.github/workflows/test.yaml
+  job2:
+    needs: skipper
+    uses: ./.github/workflows/job2.yaml
+    with:
+      skip-static: ${{ needs.skipper.outputs.skip_static }}
+      skip-tests: ${{ needs.skipper.outputs.skip_test }}
+      skip-build: ${{ needs.skipper.outputs.skip_build }}
+
+#  build:
+#    needs: skipper
+#    if: ${{ needs.skipper.outputs.skip_build }}
+#    uses: ./.github/workflows/build.yaml
+#
+#  test:
+#    needs: [build, skipper]
+#    if: ${{ needs.skipper.outputs.skip_test }}
+#    uses: ./.github/workflows/test.yaml

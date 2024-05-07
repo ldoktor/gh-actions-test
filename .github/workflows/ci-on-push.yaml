@@ -1,6 +1,6 @@
 name: PR CI
 on:
-  pull_request_target:
+  pull_request:
     types:
       - open
       - synchronize
@@ -8,11 +8,16 @@ on:
       - labeled
 
 jobs:
-  ci-on-push:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}
-    uses: ./.github/workflows/ci.yaml
+  skipper:
+    uses: ./.github/workflows/gatekeeper-skipper.yaml
     with:
       commit-hash: ${{ github.event.pull_request.head.sha }}
-      pr-number: ${{ github.event.pull_request.number }}
-      tag: ${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
       target-branch: ${{ github.event.pull_request.base.ref }}
+#  ci-on-push:
+#    if: ${{ contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}
+#    uses: ./.github/workflows/ci.yaml
+#    with:
+#      commit-hash: ${{ github.event.pull_request.head.sha }}
+#      pr-number: ${{ github.event.pull_request.number }}
+#      tag: ${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+#      target-branch: ${{ github.event.pull_request.base.ref }}
