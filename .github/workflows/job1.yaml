@@ -1,0 +1,23 @@
+name: Dummy Workflow 1
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - labeled
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Dummy task
+      run: echo "Running Dummy task"
+

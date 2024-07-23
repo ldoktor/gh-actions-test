@@ -1,0 +1,25 @@
+required_tests:
+  # Always required tests
+required_regexps:
+  # Always required regexps
+
+paths:
+  # Mapping of path (python) regexps to set-of-tests (sort by order of importance)
+  # CI
+  - "^ci/openshift-ci/": []
+  - "^\\.github/workflows/": []
+  # TODO: Expand filters
+  # Documentation
+  #- "\\.rst$": ["build"]
+  #- "\\.md$": ["build"]
+  # Sources
+  #- "^src/": ["static", "build", "test"]
+
+mapping:
+  # Mapping of set-of-tests to required test names and/or test name regexps
+  # TODO: Modify this according to actual required tests
+  static:
+    # Checks that static checks are passing
+    regexps: ".*Dummy.*"
+    required-labels:
+      - ok-to-test
