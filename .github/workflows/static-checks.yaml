@@ -1,0 +1,81 @@
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+
+
+#concurrency:
+  # cancel jobs on PRs only
+#  group: ${{ github.workflow }}-${{ github.ref }}
+#  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+name: Static checks
+jobs:
+  skipper:
+    uses: ./.github/workflows/gatekeeper-skipper.yaml
+    with:
+      commit-hash: ${{ github.event.pull_request.head.sha }}
+      target-branch: ${{ github.event.pull_request.base.ref }}
+
+  check-kernel-config-version:
+    needs: skipper
+    if: ${{ needs.skipper.outputs.skip_static != 'yes' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          env
+          sleep 1h
+
+  build-checks:
+    needs: skipper
+    if: ${{ needs.skipper.outputs.skip_static != 'yes' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          env
+          sleep 1h
+
+  build-checks-depending-on-kvm:
+    needs: skipper
+    # TODO: Transition to free runner (see #9940).
+    if: false
+    #if: ${{ needs.skipper.outputs.skip_build != 'yes' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - runtime-rs
+        include:
+          - component: runtime-rs
+            command: "sudo -E env PATH=$PATH LIBC=gnu SUPPORT_VIRTUALIZATION=true make test"
+          - component: runtime-rs
+            component-path: src/dragonball
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          env
+          sleep 1h
+
+  static-checks:
+    needs: skipper
+    if: ${{ needs.skipper.outputs.skip_build != 'yes' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        cmd:
+          - "make static-checks"
+    env:
+      GOPATH: ${{ github.workspace }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          env
+          sleep 1h
+

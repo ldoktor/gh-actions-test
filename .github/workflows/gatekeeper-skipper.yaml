@@ -31,10 +31,6 @@ on:
       skip_static:
         value: ${{ jobs.skipper.outputs.skip_static }}
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   skipper:
     runs-on: ubuntu-latest
@@ -51,5 +47,7 @@ jobs:
         env:
           TARGET_BRANCH: ${{ inputs.target-branch }}
         run: |
-          python3 tools/testing/gatekeeper/skips.py | tee -a "$GITHUB_OUTPUT"
+          #python3 tools/testing/gatekeeper/skips.py | tee -a "$GITHUB_OUTPUT"
+          echo skip_static=no | tee -a "$GITHUB_OUTPUT"
+          echo skip_build=yes | tee -a "$GITHUB_OUTPUT"
         shell: /usr/bin/bash -x {0}
